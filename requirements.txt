@@ -1,0 +1,4 @@
+Logbook==1.0.0
+requests==2.11.1
+selenium==2.53.6
+wheel==0.24.0
