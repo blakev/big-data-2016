@@ -13,6 +13,15 @@ Vivint's team repository for the Qubole Big Data 2016 competition.
 
 ### Installation
 
+**Database**:
+
+```bash
+$ docker run --name bigdata-mariadb  -e MYSQL_ROOT_PASSWORD=bigdata2016 -d -p 3306:3306 mariadb:latest
+$ mysql -u root -h 0.0.0.0 -P 3306 -p bigdata2016
+mysql> create database ratemyprofessor;
+mysql> exit
+```
+
 **Linux**:
 
 ```bash
