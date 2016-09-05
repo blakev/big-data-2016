@@ -1,0 +1,25 @@
+{
+  "name": "vivint-big-data-2016",
+  "version": "1.0.0",
+  "description": "Data mining and manipulation with NodeJS",
+  "main": "scripts/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blakev/big-data-2016.git"
+  },
+  "author": "Blake VandeMerwe",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/blakev/big-data-2016/issues"
+  },
+  "homepage": "https://github.com/blakev/big-data-2016#readme",
+  "dependencies": {
+    "async": "^2.0.1",
+    "cheerio": "^0.22.0",
+    "request": "^2.74.0",
+    "sqlite3": "^3.1.4"
+  }
+}
