@@ -22,7 +22,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import (
     Column, Integer, String, DateTime, Float,
-    Boolean, Date, ForeignKey
+    Boolean, Date, ForeignKey, ForeignKeyConstraint
 )
 
 from .types import Json
@@ -39,11 +39,13 @@ class School(Base):
     comments = relationship('SchoolComment', back_populates='school')
     teachers = relationship('Teacher', back_populates='school')
 
-    sid = Column(Integer, nullable=False)
-    name = Column(String, nullable=False)
-    url = Column(String, nullable=True, default=None)
-    location = Column(Json, nullable=True)
-    scores = Column(Integer, default=0)
+    name = Column(String(255), nullable=False)
+    sid = Column(Integer, nullable=True)
+    url = Column(String(255), nullable=True, default=None)
+    loc_city = Column(String(128), nullable=True, default=None)
+    loc_state = Column(String(16), nullable=True, default=None)
+    loc_zip = Column(String(16), nullable=True, default=None)
+    scores = Column(Json(1024), nullable=True, default={})
 
 
 class SchoolComment(Base):
@@ -55,7 +57,7 @@ class SchoolComment(Base):
     school = relationship('School')
 
     date_reviewed = Column(Date)
-    text = Column(String)
+    text = Column(String(1024*16))
 
     clubs = Column(Float, default=0.0)
     facilities = Column(Float, default=0.0)
@@ -69,7 +71,7 @@ class SchoolComment(Base):
     social = Column(Float, default=0.0)
     campus = Column(Float, default=0.0)
     library = Column(Float, default=0.0)
-    graduation_year = Column(Integer, default=-1)
+    graduation_year = Column(Integer, default=None, nullable=True)
 
 
 class Teacher(Base):
@@ -81,5 +83,5 @@ class Teacher(Base):
     school = relationship('School', back_populates='teachers')
 
     tid = Column(Integer, nullable=False)
-    name = Column(String, nullable=False)
+    name = Column(String(255), nullable=False)
     is_top = Column(Boolean, default=False)

@@ -18,13 +18,14 @@
 
 import re
 import datetime
-from typing import List
+from typing import List, Tuple
 from urllib.parse import urlparse
 from collections import namedtuple
 
 from logbook import Logger
 from selenium.webdriver import PhantomJS
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import WebDriverException
 
 from vivint.db.models import School, SchoolComment
 
@@ -40,7 +41,7 @@ re_state = re.compile(r' ([A-Z]{2})')
 
 
 class Config(object):
-    search_url = r'https://www.ratemyprofessors.com/search.jsp?query={query}'
+    search_url = r'https://www.ratemyprofessors.com/search.jsp?queryBy=schoolName&queryoption=HEADER&query={query}&facetSearch=true'
     campus_url = r'https://www.ratemyprofessors.com/campusRatings.jsp?sid={school_id}'
 
 
@@ -54,14 +55,24 @@ class CSS(object):
 
 
 def get_driver():
-    driver = PhantomJS()
-    driver.implicitly_wait(3.0)
+    try:
+        driver = PhantomJS()
+        driver.implicitly_wait(3.0)
+    except WebDriverException as e:
+        logger.error(e)
+        return None
     return driver
 
 
-def get_school_id(school: str) -> int:
+def get_school_id(driver, school: str, school_city: str=None) -> int:
     """ Grabs the RateMyProfessor school ID from a search results page. """
-    driver = get_driver()
+
+    # some schools have their city listed in the name...for some reason
+    # this reduces the chances of finding that school on RMP. So, we remove
+    # it if it's there...more or less.
+    if school_city and isinstance(school_city, str):
+        if school.lower().strip().endswith('-' + school_city.lower().strip()):
+            school = school.rsplit('-', 1)[0]
 
     # iterate over each of the schools in our list
     normal_name = school.replace(' ', '+').lower()
@@ -85,65 +96,57 @@ def get_school_id(school: str) -> int:
 
     school_id = urlparse(href).query.split('sid=')[-1]
 
-    driver.close()
-
     return int(school_id)
 
 
-def get_school_details(school_id: int, and_comments: bool=True) -> School:
-    """ Grabs the RateMyProfessor school details from ``campusRatings.jsp``"""
-    driver = get_driver()
-
-    # load the overview page
-    driver.get(Config.campus_url.format(school_id=school_id))
-
-    # find the school attributes in the top-portion of the listing page
-    name = driver.find_element(*CSS.school_name).text
-    result_title = driver.find_element(*CSS.school_header)
-    location = result_title.find_element(By.TAG_NAME, 'span').text
-    website_url = result_title.find_element(By.TAG_NAME, 'a').get_attribute('href')
-
-    # get score values
-    overall = driver.find_element(*CSS.school_overall_q).text
-    overall = float(overall)
-
-    scores = {
-        'overall': overall
-    }
-
-    # get all the individual score boxes
-    score_boxes = driver.find_elements(*CSS.score_details)
-
-    for box in score_boxes:
-        score = box.find_element_by_css_selector('span.score').text
-        label = box.find_element_by_css_selector('span.label').text
-        scores.setdefault(label.lower(), float(score))
-
-    driver.close()
-
-    # parse location
-    state_code = re_state.search(location)
-
-    if state_code is None:
-        city, state = location, None
-    else:
-        state = state_code.group(0).strip()
-        city = location.split(state)[0].strip(' ,')
-
-    location_dict = {
-        'city': city,
-        'state': state
-    }
-
-    return School(sid=school_id,
-                  name=name,
-                  url=website_url,
-                  location=location_dict)
+# def get_school_details(driver, school_id: int) -> Tuple(int, dict):
+#     """ Grabs the RateMyProfessor school details from ``campusRatings.jsp``"""
+#
+#     # load the overview page
+#     driver.get(Config.campus_url.format(school_id=school_id))
+#
+#     # find the school attributes in the top-portion of the listing page
+#     name = driver.find_element(*CSS.school_name).text
+#     result_title = driver.find_element(*CSS.school_header)
+#     location = result_title.find_element(By.TAG_NAME, 'span').text
+#     website_url = result_title.find_element(By.TAG_NAME, 'a').get_attribute('href')
+#
+#     # get score values
+#     overall = driver.find_element(*CSS.school_overall_q).text
+#     overall = float(overall)
+#
+#     scores = {
+#         'overall': overall
+#     }
+#
+#     # get all the individual score boxes
+#     score_boxes = driver.find_elements(*CSS.score_details)
+#
+#     for box in score_boxes:
+#         score = box.find_element_by_css_selector('span.score').text
+#         label = box.find_element_by_css_selector('span.label').text
+#         scores.setdefault(label.lower(), float(score))
+#
+#     # parse location
+#     state_code = re_state.search(location)
+#
+#     if state_code is None:
+#         city, state = location, None
+#     else:
+#         state = state_code.group(0).strip()
+#         city = location.split(state)[0].strip(' ,')
+#
+#     return School(sid=school_id,
+#                   name=name,
+#                   url=website_url,
+#                   loc_city=city,
+#                   loc_state=state,
+#                   scores=scores)
 
 
-def get_school_comments(school_id: int,
-                        max_comments: int=MAX_COMMENTS,
-                        driver: WebDriver=None) -> List[SchoolComment]:
+def get_school_comments(driver,
+                        school_id: int,
+                        max_comments: int=MAX_COMMENTS) -> List[SchoolComment]:
     """ Grabs up to ``max_comments`` reviews from RateMyProfessor school details page. """
 
     # if one isn't supplied, we need to create a new one
