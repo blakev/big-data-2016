@@ -74,6 +74,22 @@ class SchoolComment(Base):
     graduation_year = Column(Integer, default=None, nullable=True)
 
 
+class SchoolSocial(Base):
+    __tablename__ = 'school_social'
+
+    id = Column(Integer, primary_key=True)
+    created = Column(DateTime, default=datetime.datetime.utcnow)
+    school_id = Column(Integer, ForeignKey('school.id'))
+    school = relationship('School')
+
+    facebook = Column(String(255), nullable=True, default=None)
+    instagram = Column(String(255), nullable=True, default=None)
+    pinterest = Column(String(255), nullable=True, default=None)
+    google_plus = Column(String(255), nullable=True, default=None)
+    twitter = Column(String(255), nullable=True, default=None)
+    youtube = Column(String(255), nullable=True, default=None)
+
+
 class Teacher(Base):
     __tablename__ = 'teachers'
 
