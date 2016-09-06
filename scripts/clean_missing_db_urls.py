@@ -43,8 +43,6 @@ SEARCH_URL = 'https://duckduckgo.com/?q={query}&t=h_&ia=web'
 engine = connect(CONN_STRING, echo=True, pool_recycle=3600)
 get_session = session_factory(engine)
 
-session = get_session()
-
 
 def find_school_url_on_rmp(row):
     driver = get_driver()
@@ -116,6 +114,7 @@ def find_school_url(row):
 
 
 with mp.Pool(processes=MAX_WORKERS) as pool:
+    session = get_session()
     rows = session.query(School).filter(School.url.is_(None)).filter(School.sid.isnot(None))
     rows = [(r.name, r.sid) for r in rows]
     session.close()
