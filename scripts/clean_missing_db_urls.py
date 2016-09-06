@@ -27,7 +27,7 @@ from selenium.webdriver import Firefox
 
 from vivint.db.core import connect, session_factory
 from vivint.db.models import School
-from vivint.grab.ratemyprof import get_driver
+from vivint.grab.ratemyprof import get_driver, get_school_url
 
 StreamHandler(sys.stdout).push_application()
 logger = Logger(__name__)
@@ -36,7 +36,7 @@ logger = Logger(__name__)
 # process constants
 MAX_WORKERS = 15
 TIMEOUT_SECS = 15
-CONN_STRING = 'sqlite:///../data/school-data.db'
+CONN_STRING = 'sqlite:///./data/school-data.original.db'
 SEARCH_URL = 'https://duckduckgo.com/?q={query}&t=h_&ia=web'
 
 # setup the database
@@ -44,6 +44,37 @@ engine = connect(CONN_STRING, echo=True, pool_recycle=3600)
 get_session = session_factory(engine)
 
 session = get_session()
+
+
+def find_school_url_on_rmp(row):
+    driver = get_driver()
+    session = get_session()
+
+    name, sid = row
+
+    if driver is None:
+        logger.error('SKIPPING ' + name)
+        session.close()
+        return
+
+    try:
+        url = get_school_url(driver, sid)
+    except Exception:
+        logger.error('SKIPPING via ERROR ' + name)
+        session.close()
+        return
+
+    if url:
+        session.query(School).filter(School.sid == sid).update({"url": url})
+        session.commit()
+    else:
+        logger.error('Could not get a valid URL for school: ' + row.name)
+
+    # force closing hanging process
+    driver.service.process.send_signal(signal.SIGTERM)
+    driver.quit()
+
+    return url
 
 
 def find_school_url(row):
@@ -85,6 +116,13 @@ def find_school_url(row):
 
 
 with mp.Pool(processes=MAX_WORKERS) as pool:
-    results = pool.map(find_school_url, session.query(School).filter(School.url.is_(None)))
+    rows = session.query(School).filter(School.url.is_(None)).filter(School.sid.isnot(None))
+    rows = [(r.name, r.sid) for r in rows]
+    session.close()
 
-session.close()
+    for new_url in pool.imap_unordered(find_school_url_on_rmp, rows):
+        print(new_url)
+
+
+
+

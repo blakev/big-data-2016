@@ -28,7 +28,7 @@ logger = Logger(__name__)
 
 
 # process constants
-CONN_STRING = 'sqlite:///../data/school-data.db'
+CONN_STRING = 'sqlite:///./data/school-data.original.db'
 
 # setup the database
 engine = connect(CONN_STRING, echo=True, pool_recycle=3600)

@@ -99,6 +99,17 @@ def get_school_id(driver, school: str, school_city: str=None) -> int:
     return int(school_id)
 
 
+def get_school_url(driver, school_id: int) -> str:
+    """ Grabs the Website URL from RMP. """
+    driver.get(Config.campus_url.format(school_id=school_id))
+
+    # find the URL link in the header portion
+    result_title = driver.find_element(*CSS.school_header)
+    website_url = result_title.find_element(By.TAG_NAME, 'a').get_attribute('href')
+
+    return website_url
+
+
 # def get_school_details(driver, school_id: int) -> Tuple(int, dict):
 #     """ Grabs the RateMyProfessor school details from ``campusRatings.jsp``"""
 #
