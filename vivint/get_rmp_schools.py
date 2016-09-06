@@ -16,21 +16,21 @@
 #     big-data-2016, 2016
 # <<
 
-import sys
 import csv
-import time
-import random
 import multiprocessing as mp
+import random
 import signal
-from http.client import HTTPException
+import sys
+import time
 from collections import namedtuple
+from http.client import HTTPException
 
 from logbook import Logger, StreamHandler
 from selenium.common.exceptions import NoSuchElementException
 
-from vivint.ratemyprof import get_driver, get_school_id, get_school_comments
 from vivint.db.core import connect, create_tables, session_factory
-from vivint.db.models import School, SchoolComment
+from vivint.db.models import School
+from vivint.grab.ratemyprof import get_driver, get_school_id, get_school_comments
 
 SchoolDetails = namedtuple('SchoolDetails', 'name city state zipcode url')
 
@@ -43,7 +43,6 @@ school_list = list()
 WORKER_COUNT = 10
 MAX_COMMENTS = 100
 CONN_STRING = 'sqlite:////tmp/rmp-db.sqlite'
-#CONN_STRING = 'mysql+pymysql://root:my-secret-pw@172.17.0.1:3306/ratemyprofessor'
 
 # setup0 the database
 engine = connect(CONN_STRING, echo=True, pool_recycle=3600)
