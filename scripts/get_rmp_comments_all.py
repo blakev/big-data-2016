@@ -20,7 +20,8 @@ import sys
 import random
 import signal
 import time
-import multiprocessing as mp
+import threading as th
+from queue import Queue
 
 from logbook import Logger, StreamHandler
 from sqlalchemy import func
@@ -42,26 +43,24 @@ CONN_STRING = 'sqlite:///./data/school-data.original.db'
 engine = connect(CONN_STRING, echo=True, pool_recycle=3600)
 get_session = session_factory(engine)
 
+queue = Queue()
 
-def get_school_comments_worker(s):
+
+def do_work(driver, item):
+    # starttt the timer weeeeehoooo!
     s_time = time.time()
 
-    # unpack the tuple
-    school_id, o_comment_count = s
-
-    driver = get_driver()    # allocate a PhantomJS driver
-
-    if driver is None:
-        logger.error('Driver error: %d' % school_id)
-        return
-
-    session = get_session()  # allocate a database session
+    # unpack the db results
+    school_id, o_comment_count = item
 
     logger.info('Starting: %d' % school_id)
 
     time.sleep(random.randint(3, 10))
 
     comments = get_school_comments(driver, school_id, MAX_COMMENTS)
+
+    # allocate a database session
+    session = get_session()
 
     if len(comments) > o_comment_count:
         logger.info('New comments found: %d' % school_id)
@@ -77,13 +76,27 @@ def get_school_comments_worker(s):
     # close the db connection
     session.close()
 
-    # force closing hanging process
-    driver.service.process.send_signal(signal.SIGTERM)
-    driver.quit()
-
     # wrap it up, yo
     logger.info('Finished: %s, took %0.2f' % (school_id, time.time()-s_time))
     logger.info('%d ---> new, %d' % (o_comment_count, len(comments)))
+
+
+def get_school_comments_worker():
+    driver = get_driver()  # allocate a PhantomJS driver
+
+    while True:
+        item = queue.get()
+        if item is None:
+            # force closing hanging process
+            driver.service.process.send_signal(signal.SIGTERM)
+            driver.quit()
+            break
+
+        do_work(driver, item)
+        queue.task_done()
+
+    logger.info('Stopping thread')
+
 
 if __name__ == '__main__':
     # randomize our list so it's not as obvious we're going alphabetically
@@ -95,12 +108,27 @@ if __name__ == '__main__':
     schools = session.query(SchoolComment.school_id, func.count(SchoolComment.id))\
         .group_by(SchoolComment.school_id)\
         .having(func.count(SchoolComment.school_id) >= RESCAN_MIN_COUNT)\
+        .having(func.count(SchoolComment.school_id) <= 99)\
         .all()
 
-    # spread the work across a pool..
-    with mp.Pool(processes=WORKER_COUNT) as pool:
-        results = pool.map(get_school_comments_worker, schools)
+    print(len(schools))
 
+    threads = []
+
+    for s in schools:
+        queue.put_nowait(s)
     session.close()
+
+    for i in range(WORKER_COUNT):
+        t = th.Thread(target=get_school_comments_worker)
+        t.start()
+        threads.append(t)
+
+    queue.join()
+
+    for i in range(WORKER_COUNT):
+        queue.put(None)
+    for t in threads:
+        t.join()
 
     print('done')
