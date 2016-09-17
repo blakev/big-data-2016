@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 from collections import namedtuple
 
 from logbook import Logger
-from selenium.webdriver import PhantomJS
+from selenium.webdriver import Firefox, FirefoxProfile
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import WebDriverException
 
@@ -31,7 +31,7 @@ from vivint.db.models import School, SchoolComment
 
 logger = Logger(__name__)
 Teacher = namedtuple('Teacher', 'name tid')
-WebDriver = PhantomJS   # alias for type completion
+WebDriver = Firefox # alias for type completion
 
 MAX_COMMENTS = 50
 
@@ -55,9 +55,25 @@ class CSS(object):
 
 
 def get_driver():
+    profile = FirefoxProfile()
+    profile.add_extension('./bin/quickjava.xpi')
+
+    options = [
+        ('startupStatus.Images', 2),
+        ('startupStatus.AnimatedImage', 2),
+        ('startupStatuss.CSS', 2),
+        ('startupStatus.Cookies', 2),
+        ('startupStatus.Flash', 2),
+        ('startupStatus.Java', 2),
+        ('startupStatus.Silverlight', 2)
+    ]
+
+    for o, v in options:
+        profile.set_preference('thatoneguydotnet.QuickJava.' + o, v)
+
     try:
-        driver = PhantomJS()
-        driver.implicitly_wait(3.0)
+        driver = WebDriver(profile)
+        driver.implicitly_wait(5.0)
     except WebDriverException as e:
         logger.error(e)
         return None
@@ -168,6 +184,16 @@ def get_school_comments(driver,
     if driver.current_url != url:
         driver.get(url)
 
+    # pop down the bottom message, close the cookie thing
+    # driver.find_element_by_css_selector('.overlay').click()
+    try:
+        has_close = driver.find_element_by_css_selector('.btn.close-this')
+    except WebDriverException:
+        pass
+    else:
+        if has_close:
+            has_close.click()
+
     # determine if the school has any active ratings we can scrape
     ratings = driver.find_element(*CSS.ratings_count)
     rating_number = re_number.findall(ratings.text)
@@ -185,10 +211,9 @@ def get_school_comments(driver,
         return list(filter(lambda e: e.get_attribute('id') not in ['', None], els))
 
     if rating_number > 0:
-        shown_comments = get_shown_comments()
         has_loadmore = True
 
-        while has_loadmore and len(shown_comments) < max_comments:
+        while has_loadmore:
             try:
                 loadmore = driver.find_element(By.CSS_SELECTOR, 'a#loadMore[data-school-id="%d"]' % school_id)
                 if loadmore:
@@ -196,8 +221,8 @@ def get_school_comments(driver,
                     loadmore.click()
             except Exception as e:
                 has_loadmore = False
-            finally:
-                shown_comments = get_shown_comments()
+
+        shown_comments = get_shown_comments()
 
         for comment in shown_comments[1:max_comments+1]:
             # make sure the comment is visible, hopefully lazy loading its content

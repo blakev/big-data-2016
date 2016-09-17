@@ -34,7 +34,7 @@ logger = Logger(__name__)
 StreamHandler(sys.stdout).push_application()
 
 # process constants
-WORKER_COUNT = 10
+WORKER_COUNT = 1
 MAX_COMMENTS = 1000
 RESCAN_MIN_COUNT = 90
 CONN_STRING = 'sqlite:///./data/school-data.original.db'
@@ -54,8 +54,6 @@ def do_work(driver, item):
     school_id, o_comment_count = item
 
     logger.info('Starting: %d' % school_id)
-
-    time.sleep(random.randint(3, 10))
 
     comments = get_school_comments(driver, school_id, MAX_COMMENTS)
 
@@ -113,6 +111,7 @@ if __name__ == '__main__':
 
     print(len(schools))
 
+    random.shuffle(schools)
     threads = []
 
     for s in schools:

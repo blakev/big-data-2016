@@ -16,8 +16,15 @@
 #     big-data-2016, 2016
 # <<
 
+import os
+import json
+
 from logbook import Logger
 
 logger = Logger(__name__)
 
 
+def all_credentials():
+    with open(os.path.join('.', 'vivint', 'credentials', 'credentials.json'), 'r') as ins_file:
+        creds = json.load(ins_file)
+    return creds
