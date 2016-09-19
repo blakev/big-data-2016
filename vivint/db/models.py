@@ -83,6 +83,8 @@ class SchoolSocial(Base):
     school_id = Column(Integer, ForeignKey('school.id'))
     school = relationship('School')
 
+    phone = Column(String(16), nullable=True, default=None)
+    email = Column(String(255), nullable=True, default=None)
     facebook = Column(String(255), nullable=True, default=None)
     instagram = Column(String(255), nullable=True, default=None)
     pinterest = Column(String(255), nullable=True, default=None)
