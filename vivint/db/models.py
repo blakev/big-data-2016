@@ -42,6 +42,7 @@ class School(Base):
     name = Column(String(255), nullable=False)
     sid = Column(Integer, nullable=True)
     url = Column(String(255), nullable=True, default=None)
+    loc_addr = Column(String(256), nullable=True, default=None)
     loc_city = Column(String(128), nullable=True, default=None)
     loc_state = Column(String(16), nullable=True, default=None)
     loc_zip = Column(String(16), nullable=True, default=None)
